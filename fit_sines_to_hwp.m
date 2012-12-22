@@ -15,6 +15,7 @@ end
 
 npoly=get_keyval_default('npoly',0,varargin{:});
 nsin=get_keyval_default('nsin',90,varargin{:});
+do_slope=get_keyval_default('do_slope',false,varargin{:});
 hwp_scale_fac=get_keyval_default('hwp_scale_fac',9000/2/pi,varargin{:});
 hwp=round(hwp*hwp_scale_fac);
 
@@ -41,24 +42,28 @@ end
 
 
 sinmat=zeros(2*nsin+1,ndat);
-tic
 for j=1:ndat,
   %sinmat(:,j)=[cos(x1);sin(x2)];
   sinmat(:,j)=lookup_mat(:,hwp(j));
 end
-toc
 
 
 
-xvec=1:ndat;
-xvec=xvec'-mean(xvec);
-xvec=xvec/max(xvec);
+if (do_slope)|(npoly>0)
+  xvec=1:ndat;
+  xvec=xvec'-mean(xvec);
+  xvec=xvec/max(xvec);
+end  
 
-sinmat=[sinmat;sinmat]';
-for j=2*nsin+2:size(sinmat,2),
-  sinmat(:,j)=sinmat(:,j).*xvec;
+if (do_slope)
+
+  sinmat=[sinmat;sinmat]';
+  for j=2*nsin+2:size(sinmat,2),
+    sinmat(:,j)=sinmat(:,j).*xvec;
+  end
+  sinmat=sinmat';
 end
-sinmat=sinmat';
+
 
 
 if npoly>0

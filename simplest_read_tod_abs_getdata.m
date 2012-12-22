@@ -4,8 +4,17 @@ az_shift=get_keyval_default('az_shift',0,varargin{:}); %bonus az shift, in radia
 el_shift=get_keyval_default('el_shift',0,varargin{:}); %bonus el shift, in radians
 ctime_shift=get_keyval_default('ctime_shift',0,varargin{:}); %bonus ctime shift, in radians
 calib_pw=get_keyval_default('calib_pw',false,varargin{:}); %calibrate using IV files to picowatts
+hwp_encoder_range=get_keyval_default('hwp_encoder_range',9000,varargin{:});
+ignore_dirfile=get_keyval_default('ignore_dirfile',false,varargin{:});
 iv_file=get_keyval_default('iv_file','',varargin{:});
-myf=init_getdata_file(todname);
+
+%if we've had problems reading stuff in, hack it so that we try to read directly from disk. All fields will need to be native int.
+if ~ignore_dirfile
+  myf=init_getdata_file(todname);
+else
+  myf=todname;
+end
+
 
 tod=allocate_tod_c();
 if ~exist('row')
@@ -20,17 +29,26 @@ end
 %calib_facs=ones(size(row));
 calib_facs=ones(max(row)+1,max(col)+1); %default to one for the calibration unless otherwise specified
 if calib_pw
-  if isempty(iv_file)
-    ff=find_my_ivfile(todname);
+  if (1)
+    calib_facs=get_abs_calib_facs(todname,varargin{:});
   else
-    ff=iv_file;
+    if isempty(iv_file)
+      ff=find_my_ivfile(todname);
+    else
+      ff=iv_file;
+    end
+    calib_facs=read_ivfile(ff);
   end
-  calib_facs=read_ivfile(ff);
+  
   keep_ind=true(length(row),1);
   for j=1:length(row)
     if calib_facs(row(j)+1,col(j)+1)==0
       keep_ind(j)=false;
     end
+    if ~isfinite(calib_facs(row(j)+1,col(j)+1))
+      keep_ind(j)=false;
+    end
+    
   end
   if sum(keep_ind==false)>0
     disp(['Cutting ' num2str(sum(keep_ind==false)) ' detectors for missing IV values.'])
@@ -69,12 +87,20 @@ end
 
 
 
+hwp=getdata_double_channel(myf,'hwp_encoder_counts');
+hwp=round(repair_hwp(hwp,'max_hwp',hwp_encoder_range));
+hwp=2*pi*hwp/hwp_encoder_range;
+
+
+
+
 [isbad,ct]=find_bad_abs_ctime_samples(ct);
 
 xx=(1:length(ct))';
 if ~isempty(isbad)
   az(isbad)=interp1(xx(~isbad),az(~isbad),xx(isbad));
   el(isbad)=interp1(xx(~isbad),el(~isbad),xx(isbad));
+  hwp(isbad)=interp1(xx(~isbad),hwp(~isbad),xx(isbad));
 end
 
 %If we have an extra shift to the az, apply it now.
@@ -90,11 +116,17 @@ end
 
 set_tod_ndata_c(tod,length(az));
 set_tod_altaz_c(tod,el,az);
+set_tod_hwp_angle_c(tod,hwp);
 
 set_tod_timevec_c(tod,ct);
 set_tod_dt_c(tod,median(diff(ct)));
 set_tod_rowcol_c(tod,row,col);
 
+if todname(end)=='/'
+  todname=todname(1:end-1);
+end
+
+set_tod_filename(tod,todname);
 
 
 ndet=numel(row);

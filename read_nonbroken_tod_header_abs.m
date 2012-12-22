@@ -4,8 +4,8 @@ freq=get_keyval_default('freq',148.0,varargin{:});
 hwp_encoder_range=get_keyval_default('hwp_encoder_range',9000,varargin{:});
 cuts_name=get_keyval_default('cuts_name','',varargin{:});
 
-
 myf=init_getdata_file(todname);
+
 %calib_pw=get_keyval_default('calib_pw',false,varargin{:}); %calibrate using IV files to picowatts
 
 
@@ -39,6 +39,7 @@ theta=theta(isfinite(theta));
 ct=getdata_double_channel(myf,'sync_time');
 [crap,ct]=find_bad_abs_ctime_samples(ct);  %make sure ctimes aren't totally crazy
 sync_box_num=getdata_double_channel(myf,'sync_box_num');
+whos
 assert(numel(ct)==numel(sync_box_num));  %if this fails, we have size mismatches
 
 
@@ -70,7 +71,8 @@ hwp=round(repair_hwp(hwp,'max_hwp',hwp_encoder_range));
 hwp=2*pi*hwp/hwp_encoder_range;
 set_tod_hwp_angle_c(tod,hwp);
 
-set_tod_filename_c(tod,todname);
+set_tod_filename(tod,todname);
 
-
-close_getdata_file(myf);
+for j=1:length(myf)
+  close_getdata_file(myf(j));
+end

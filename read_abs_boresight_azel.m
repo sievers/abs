@@ -2,7 +2,8 @@ function[az,el]=read_abs_boresight_azel(tod_name)
 az_offset=20725175;
 el_offset=65008;
 
-if numel(tod_name)==1 %getting a dirfile pointer here  
+%if numel(tod_name)==1 %getting a dirfile pointer here  
+if ~ischar(tod_name) %getting a dirfile pointer here  
   myf=tod_name;
   az=getdata_double_channel(myf,'az_encoder_counts');
   az=repair_vec(az);
