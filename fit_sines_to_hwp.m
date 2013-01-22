@@ -1,4 +1,4 @@
-function[dat,mymod,fitp]=fit_sines_to_hwp(tod,varargin)
+function[dat,mymod,fitp,sinmat]=fit_sines_to_hwp(tod,varargin)
 
 %if first argument is a TOD, pull things from it, otherwise use what's there.
 if (numel(tod)==1)

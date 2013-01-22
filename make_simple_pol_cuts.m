@@ -10,6 +10,10 @@ detrend_data_c_c(tod);
 find_spikes(tod,varargin{:});
 
 tod_name=get_tod_name(tod);
+if iscell(tod_name)
+  tod_name=tod_name{1};
+end
+
 ii=max(find(tod_name=='/'));
 if ~isempty(ii)
   tag=tod_name(ii+1:end);

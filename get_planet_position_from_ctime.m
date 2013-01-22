@@ -2,9 +2,9 @@ function[ra,dec]=get_planet_position_from_ctime(obj,ctimes,varargin)
 
 do_azel=get_ephem_obj_ind('azel',varargin)>0;  %hack since we have code sitting around that will check varargin
 
-ok_obj_list={'moon','venus'};
+ok_obj_list={'moon','venus','jupiter'};
 ephem_dir='/home/sievers/ephemerides/';
-ephem_files={'moon_superfine.txt','venus_2012.txt'};
+ephem_files={'moon_superfine.txt','venus_2012.txt','jupiter_2012.txt'};
 
 
 persistent ephem_data  %we're going to save this so we don't reload at every call
@@ -40,9 +40,16 @@ else
   x=cos(dat_use(:,2)*pi/180).*cos(dat_use(:,3)*pi/180);
   y=sin(dat_use(:,2)*pi/180).*cos(dat_use(:,3)*pi/180);
 end
-zz=interp1(dat_use(:,1),z,mjd(:,1));
-xx=interp1(dat_use(:,1),x,mjd(:,1));
-yy=interp1(dat_use(:,1),y,mjd(:,1));
+
+%if (do_azel)
+  zz=interp1(dat_use(:,1),z,mjd(:,1),'spline');
+  xx=interp1(dat_use(:,1),x,mjd(:,1),'spline');
+  yy=interp1(dat_use(:,1),y,mjd(:,1),'spline');
+%else
+%  zz=interp1(dat_use(:,1),z,mjd(:,1));
+%  xx=interp1(dat_use(:,1),x,mjd(:,1));
+%  yy=interp1(dat_use(:,1),y,mjd(:,1));
+%end
 dec=asin(zz);
 ra=atan2(yy,xx);
 

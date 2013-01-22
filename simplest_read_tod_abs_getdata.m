@@ -15,7 +15,6 @@ else
   myf=todname;
 end
 
-
 tod=allocate_tod_c();
 if ~exist('row')
   row=0:21;nr=numel(row);
@@ -30,7 +29,11 @@ end
 calib_facs=ones(max(row)+1,max(col)+1); %default to one for the calibration unless otherwise specified
 if calib_pw
   if (1)
-    calib_facs=get_abs_calib_facs(todname,varargin{:});
+    if iscell(todname)
+      calib_facs=get_abs_calib_facs(todname{1},varargin{:});
+    else
+      calib_facs=get_abs_calib_facs(todname,varargin{:});
+    end
   else
     if isempty(iv_file)
       ff=find_my_ivfile(todname);
@@ -61,6 +64,8 @@ end
 
 row=row(isfinite(dx));
 col=col(isfinite(dx));
+
+whos myf
 
 %fid=fopen([todname '/sync_box_num']);sync_box_num=fread(fid,inf,'uint32');fclose(fid);
 sync_box_num=getdata_double_channel(myf,'sync_box_num');
@@ -122,11 +127,12 @@ set_tod_timevec_c(tod,ct);
 set_tod_dt_c(tod,median(diff(ct)));
 set_tod_rowcol_c(tod,row,col);
 
-if todname(end)=='/'
-  todname=todname(1:end-1);
-end
+disp('seting todname');
 
+todname=strip_trailing_slashes(todname);
 set_tod_filename(tod,todname);
+
+disp('set');
 
 
 ndet=numel(row);
