@@ -1,4 +1,4 @@
-function[tod]=simplest_read_tod_abs_getdata(todname,row,col,ra_wrap,varargin)
+function[tod]=read_tod_header_abs(todname,row,col,ra_wrap,varargin)
 
 az_shift=get_keyval_default('az_shift',0,varargin{:}); %bonus az shift, in radians
 el_shift=get_keyval_default('el_shift',0,varargin{:}); %bonus el shift, in radians
@@ -7,6 +7,7 @@ calib_pw=get_keyval_default('calib_pw',false,varargin{:}); %calibrate using IV f
 hwp_encoder_range=get_keyval_default('hwp_encoder_range',9000,varargin{:});
 ignore_dirfile=get_keyval_default('ignore_dirfile',false,varargin{:});
 iv_file=get_keyval_default('iv_file','',varargin{:});
+get_radec_lims_lowmem=get_keyval_default('get_radec_lims_lowmem',true,varargin{:});
 
 %if we've had problems reading stuff in, hack it so that we try to read directly from disk. All fields will need to be native int.
 if ~ignore_dirfile
@@ -113,11 +114,6 @@ if az_shift~=0
   az=az+az_shift;
 end
 
-if el_shift~=0
-  el=el+el_shift;
-end
-
-
 if ctime_shift~=0
   ct=ct+ctime_shift;
 end
@@ -142,39 +138,48 @@ disp('set');
 
 ndet=numel(row);
 ndata=numel(az);
-dat=zeros(ndata,ndet);
+%dat=zeros(ndata,ndet);
 
 
-
-for j=1:ndet,
-  %fname=sprintf('%s/tesdatar%02dc%02d',todname,row(j),col(j));
-  %fid=fopen(fname);
-  %tmp=fread(fid,inf,'int32');
-  tmp=calib_facs(row(j)+1,col(j)+1)*getdata_double_channel(myf,sprintf('tesdatar%02dc%02d',row(j),col(j)));
-  if length(tmp)<ndata,
-    tmp(end+1:ndata)=tmp(end);
+if (0)
+  for j=1:ndet,
+    %fname=sprintf('%s/tesdatar%02dc%02d',todname,row(j),col(j));
+    %fid=fopen(fname);
+    %tmp=fread(fid,inf,'int32');
+    tmp=calib_facs(row(j)+1,col(j)+1)*getdata_double_channel(myf,sprintf('tesdatar%02dc%02d',row(j),col(j)));
+    if length(tmp)<ndata,
+      tmp(end+1:ndata)=tmp(end);
+    end
+    dat(:,j)=tmp(1:ndata);
+    %fclose(fid);
   end
-  dat(:,j)=tmp(1:ndata);
-  %fclose(fid);
-end
+else
+end 
 
 alloc_tod_cuts_c(tod);
-set_tod_data_saved(tod,dat);
+%set_tod_data_saved(tod,dat);
 
 if (1)
   
   [dx,dy]=get_abs_detector_offsets(row,col,varargin{:});
   %dy=-1.758972761091516901e+00*pi/180;
   %dx= 2.142848400011577725e-01*pi/180;
-  ra=zeros(size(dat));
-  dec=zeros(size(dat));
   do_actpol_pointing=true
+  %ra=zeros(ndata,ndet);
+  %dec=zeros(ndata,ndet);
+        
   if do_actpol_pointing
     tic
       initialize_actpol_pointing(tod,-dy,-dx,0*dx,148.0,1);
-      precalc_actpol_pointing_exact(tod);
-      [ra,dec]=get_all_detector_radec_c(tod);
-      free_tod_pointing_saved(tod);
+      if (get_radec_lims_lowmem)
+        find_tod_radec_lims_actpol_pointing_exact_c(tod);
+      else        
+        precalc_actpol_pointing_exact(tod);
+        [ra,dec]=get_all_detector_radec_c(tod,ra_wrap);
+        free_tod_pointing_saved(tod);
+
+      end
+
     toc
   else
     tic
@@ -189,38 +194,43 @@ if (1)
       end
     toc
   end
-  if (exist('ra_wrap'))
-    disp(['repairing RA from ra_wrap']);
-    ra(ra>ra_wrap)=ra(ra>ra_wrap)-2*pi;
-    disp([max(max(ra)) min(min(ra))]);
-  end
-  ramin=min(min(ra));
-  ramax=max(max(ra));  
-  disp([ramin ramax])
 
-  if (ramax-ramin>6) %if we span more than 6 radians, we probably have wrapped and need change the branch point
-    disp('reparing ra');
-    rr=sort(reshape(ra,[numel(ra) 1]));
-    dra=diff(rr);[a,b]=max(dra);
-    mybranch=mean([rr(b) rr(b+1)]);
-    clear rr;clear dra;
-    %if mybranch<0
-    if 1
-      ra(ra<mybranch)=ra(ra<mybranch)+2*pi;
-    else
-      ra(ra>mybranch)=ra(ra>mybranch)-2*pi;
+  if (~get_radec_lims_lowmem)
+    if (exist('ra_wrap'))
+      disp(['repairing RA from ra_wrap']);
+      ra(ra>ra_wrap)=ra(ra>ra_wrap)-2*pi;
+      disp([max(max(ra)) min(min(ra))]);
     end
     ramin=min(min(ra));
-    ramax=max(max(ra));      
+    ramax=max(max(ra));  
+    disp([ramin ramax])
+    
+    if (ramax-ramin>6) %if we span more than 6 radians, we probably have wrapped and need change the branch point
+      disp('reparing ra');
+      rr=sort(reshape(ra,[numel(ra) 1]));
+      dra=diff(rr);[a,b]=max(dra);
+      mybranch=mean([rr(b) rr(b+1)]);
+      clear rr;clear dra;
+      %if mybranch<0
+      if 1
+        ra(ra<mybranch)=ra(ra<mybranch)+2*pi;
+      else
+        ra(ra>mybranch)=ra(ra>mybranch)-2*pi;
+      end
+      ramin=min(min(ra));
+      ramax=max(max(ra));      
+    end
+    
+    decmin=min(min(dec));
+    decmax=max(max(dec));  
+    set_tod_radec_lims_c(tod,ramin,ramax,decmin,decmax);
   end
   
-  decmin=min(min(dec));
-  decmax=max(max(dec));  
   if (~do_actpol_pointing)
     set_tod_pointing_saved(tod,ra,dec);
     disp('set pointing.');
   end
-  set_tod_radec_lims_c(tod,ramin,ramax,decmin,decmax);
+  
   
   
 end
