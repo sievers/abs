@@ -2,6 +2,7 @@ function[tod]=read_tod_header_abs(todname,row,col,ra_wrap,varargin)
 
 az_shift=get_keyval_default('az_shift',0,varargin{:}); %bonus az shift, in radians
 el_shift=get_keyval_default('el_shift',0,varargin{:}); %bonus el shift, in radians
+angle_shift=get_keyval_default('angle_shift',0,varargin{:}); %bonus shift to detector angles, in radians
 ctime_shift=get_keyval_default('ctime_shift',0,varargin{:}); %bonus ctime shift, in radians
 calib_pw=get_keyval_default('calib_pw',false,varargin{:}); %calibrate using IV files to picowatts
 hwp_encoder_range=get_keyval_default('hwp_encoder_range',9000,varargin{:});
@@ -170,7 +171,7 @@ if (1)
         
   if do_actpol_pointing
     tic
-      initialize_actpol_pointing(tod,-dy,-dx,0*dx,148.0,1);
+      initialize_actpol_pointing(tod,-dy,-dx,0*dx+angle_shift,148.0,1);
       if (get_radec_lims_lowmem)
         find_tod_radec_lims_actpol_pointing_exact_c(tod);
       else        

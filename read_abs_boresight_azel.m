@@ -41,10 +41,11 @@ el=el*pi/180;
 
 function[vec]=repair_vec(vec)
 bad_ind=find(vec>2e9);
-disp(['repairing ' num2str(numel(bad_ind)) ' samples.']);
+
 if numel(bad_ind)==0
   return
 end
+disp(['repairing ' num2str(numel(bad_ind)) ' samples.']);
 
 if bad_ind(1)==1
   vec(1)=median(vec);
