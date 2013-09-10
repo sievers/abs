@@ -1,5 +1,4 @@
 function[dat,mymod,fitp,sinmat]=fit_sines_to_hwp(tod,varargin)
-
 %if first argument is a TOD, pull things from it, otherwise use what's there.
 if (numel(tod)==1)
   dat=get_tod_data(tod);
@@ -12,11 +11,32 @@ else
 end
 
 
+if numel(varargin)>1
+  opts=varargin2opts(varargin{:});
+else
+  if numel(varargin)==1;
+    opts=varargin{1};
+    assert(isstruct(opts));
+  else
+    opts.asdfasdfasdfasdfads=0;  %dummy field so we pick up defaults
+  end
+end
 
-npoly=get_keyval_default('npoly',0,varargin{:});
-nsin=get_keyval_default('nsin',90,varargin{:});
-do_slope=get_keyval_default('do_slope',false,varargin{:});
-hwp_scale_fac=get_keyval_default('hwp_scale_fac',9000/2/pi,varargin{:});
+
+
+if (1)
+  npoly=get_struct_mem(opts,'npoly',0)
+  nsin=get_struct_mem(opts,'nsin',90)
+  do_slope=get_struct_mem(opts,'do_slope',false);
+  hwp_scale_fac=get_struct_mem(opts,'hwp_scale_fac',9000/2/pi);
+  push_hwp_data=get_struct_mem(opts,'push_hwp_data',false);
+else
+  %this should now be deprecated
+  npoly=get_keyval_default('npoly',0,varargin{:});
+  nsin=get_keyval_default('nsin',90,varargin{:});
+  do_slope=get_keyval_default('do_slope',false,varargin{:});
+  hwp_scale_fac=get_keyval_default('hwp_scale_fac',9000/2/pi,varargin{:});
+end
 hwp=round(hwp*hwp_scale_fac);
 
 
@@ -86,6 +106,12 @@ end
 
 dat=dat-sinmat'*fitp;
 mymod=lookup_mat'*fitp(1:size(lookup_mat,1),:);
+
+if (push_hwp_data)
+  push_tod_data(dat,tod);
+end
+
+
 return
 mymod=[mymod lookup_mat'*fitp(size(lookup_mat,1)+1:2*size(lookup_mat,1))];
 

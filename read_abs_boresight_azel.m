@@ -1,14 +1,27 @@
-function[az,el]=read_abs_boresight_azel(tod_name)
+function[az,el]=read_abs_boresight_azel(tod_name,apply_offsets)
+if ~exist('apply_offsets')
+  apply_offsets=true;
+end
+
 az_offset=20725175;
 el_offset=65008;
 
 %if numel(tod_name)==1 %getting a dirfile pointer here  
 if ~ischar(tod_name) %getting a dirfile pointer here  
   myf=tod_name;
-  az=getdata_double_channel(myf,'az_encoder_counts');
-  az=repair_vec(az);
-  el=getdata_double_channel(myf,'el_encoder_counts');
-  el=repair_vec(el);
+  try 
+    az=getdata_double_channel(myf,'corr_az_encoder_counts');
+  catch
+    az=getdata_double_channel(myf,'az_encoder_counts');
+    az=repair_vec(az);
+  end
+
+  try
+    el=getdata_double_channel(myf,'corr_el_encoder_counts');
+  catch 
+    el=getdata_double_channel(myf,'el_encoder_counts');
+    el=repair_vec(el);  
+  end
 else
 
   if tod_name(end)~='/'
@@ -22,6 +35,9 @@ else
   fid=fopen([tod_name 'hk/el_encoder_counts']);
   el=fread(fid,inf,'int32');
   fclose(fid);
+end
+if apply_offsets==false
+  return
 end
 
 az=(az-az_offset)*360/2^25;

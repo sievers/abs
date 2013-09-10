@@ -1,12 +1,27 @@
-function[iv_name]=find_my_ivfile(tod_name)
+function[iv_name]=find_my_ivfile(tod_name,dirroot)
 if tod_name(end)=='/'
   tod_name=tod_name(1:end-1);
 end
 ii=max(find(tod_name=='/'));
 dr=tod_name(1:ii);
+if exist('dirroot')
+  tt=strsplit(dr,'/',true);
+  dr=[dirroot '/' tt{end}];
+end
+
 %disp(['directory is ' dr]);
 [a,b]=system(['ls ' dr '/iv*.out']);
 iv_names=mystrsplit(b,10);
+if isempty(iv_names)
+  %give it another chance in case system craps out momentarily
+  [a,b]=system(['ls ' dr '/iv*.out']);
+  iv_names=mystrsplit(b,10);
+  if isempty(iv_names)
+    warning(['find_my_ivfile failed on ' tod_name]);
+    return
+  end
+end
+
 
 tail=tod_name(ii+1:end);
 ii2=min(find(tail=='_'));
