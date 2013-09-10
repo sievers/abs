@@ -113,6 +113,11 @@ if az_shift~=0
   az=az+az_shift;
 end
 
+if el_shift~=0
+  el=el+el_shift;
+end
+
+
 if ctime_shift~=0
   ct=ct+ctime_shift;
 end

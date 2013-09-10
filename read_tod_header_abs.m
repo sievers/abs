@@ -4,15 +4,19 @@ az_shift=get_keyval_default('az_shift',0,varargin{:}); %bonus az shift, in radia
 el_shift=get_keyval_default('el_shift',0,varargin{:}); %bonus el shift, in radians
 focal_plane_scale_fac=get_keyval_default('focal_plane_scale_fac',1.0,varargin{:}); %scale dx/dy by this amount.  Can be used e.g. to put all detectors along boresight
 use_ctime_azel=get_keyval_default('use_ctime_azel',false,varargin{:}); %if true, use Srini's updated az/el boresight code
+angle_shift=get_keyval_default('angle_shift',0,varargin{:}); %bonus shift to detector angles, in radians
+
 ctime_shift=get_keyval_default('ctime_shift',0,varargin{:}); %bonus ctime shift, in radians
 calib_pw=get_keyval_default('calib_pw',false,varargin{:}); %calibrate using IV files to picowatts
 hwp_encoder_range=get_keyval_default('hwp_encoder_range',9000,varargin{:});
 ignore_dirfile=get_keyval_default('ignore_dirfile',false,varargin{:});
 iv_file=get_keyval_default('iv_file','',varargin{:});
+
 angle_file=get_keyval_default('angle_file','',varargin{:});
 do_reconstruct_hwp=get_keyval_default('reconstruct_hwp',false,varargin{:}); %if true, use code to try to repair HWP
 median_az=get_keyval_default('median_az',[],varargin{:}); %if present, set the median az to this value
 skip_repair=get_keyval_default('skip_repair',false,varargin{:}); %if true, don't try to repair potentially dodgy channels.  Akito's corrected TODs should make them skipable
+get_radec_lims_lowmem=get_keyval_default('get_radec_lims_lowmem',true,varargin{:});
 
 %if we've had problems reading stuff in, hack it so that we try to read directly from disk. All fields will need to be native int.
 if ~ignore_dirfile
@@ -30,6 +34,7 @@ if ~exist('row')
   row=reshape(row,[nr*nc 1]);
   col=reshape(col,[nr*nc 1]);
 end
+
 
 if ~isempty(angle_file)  
   theta=-1*get_detector_angles_abs(row,col,angle_file);
@@ -80,6 +85,7 @@ if calib_pw
 end
 
 [dx,dy]=get_abs_detector_offsets(row,col,varargin{:});
+
 if focal_plane_scale_fac ~=1
   mdisp(['rescaling focal plane detector positions by ' num2str(focal_plane_scale_fac) '.']);
   dx=dx*focal_plane_scale_fac;
@@ -94,6 +100,7 @@ whos myf
 
 %fid=fopen([todname '/sync_box_num']);sync_box_num=fread(fid,inf,'uint32');fclose(fid);
 sync_box_num=getdata_double_channel(myf,'sync_box_num');
+
 ct=getdata_double_channel(myf,'sync_time');
 
 [az,el]=read_abs_boresight_azel(myf);
@@ -110,7 +117,6 @@ if ~isempty(median_az)
   az=az-median(az)+median_az;
 end
 
-
 %el=pi/2-el;
 
 
@@ -118,7 +124,6 @@ end
 %fid=fopen([todname '/hk/sync_time']);
 %ct=fread(fid,inf,'double');
 %fclose(fid);
-
 if numel(sync_box_num)~=numel(az)
   warning(['Mismatch in data lengths in ' todname ' tesdata: ' num2str(numel(sync_box_num)) ', hk: ' num2str(numel(az))]);
   %fid=fopen([todname '/hk/sync_number']);sync_num=fread(fid,inf,'uint32');fclose(fid);
@@ -139,12 +144,10 @@ else
 end
 
 
-
-
-
 [isbad,ct]=find_bad_abs_ctime_samples(ct);
 
 xx=(1:length(ct))';
+
 if ~skip_repair
   if ~isempty(isbad)
     az(isbad)=interp1(xx(~isbad),az(~isbad),xx(isbad));
@@ -207,6 +210,7 @@ alloc_tod_cuts_c(tod);
 if (1)
   
   [dx,dy]=get_abs_detector_offsets(row,col,varargin{:});
+
   if focal_plane_scale_fac ~=1
     mdisp(['rescaling focal plane detector positions by ' num2str(focal_plane_scale_fac) '.']);
     dx=dx*focal_plane_scale_fac;
@@ -232,6 +236,18 @@ if (1)
       dec=get_all_detector_dec_saved_c(tod);
       free_tod_dec_saved(tod);
       free_tod_pointing_saved(tod);
+
+
+      %if do_actpol_pointing
+      %tic
+      %initialize_actpol_pointing(tod,-dy,-dx,0*dx+angle_shift,148.0,1);
+      %if (get_radec_lims_lowmem)
+      %  find_tod_radec_lims_actpol_pointing_exact_c(tod);
+      %else        
+      %  precalc_actpol_pointing_exact(tod);
+      %  [ra,dec]=get_all_detector_radec_c(tod,ra_wrap);
+      %  free_tod_pointing_saved(tod);
+      %end
     toc
   else
     tic
@@ -246,6 +262,7 @@ if (1)
       end
     toc
   end
+
   if (exist('ra_wrap'))
     disp(['repairing RA from ra_wrap']);
     ra(ra>ra_wrap)=ra(ra>ra_wrap)-2*pi;
@@ -273,11 +290,11 @@ if (1)
   
   decmin=min(min(dec));
   decmax=max(max(dec));  
+
   if (~do_actpol_pointing)
     set_tod_pointing_saved(tod,ra,dec);
     disp('set pointing.');
   end
   set_tod_radec_lims_c(tod,ramin,ramax,decmin,decmax);
-  
   
 end
